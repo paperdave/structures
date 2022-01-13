@@ -12,13 +12,9 @@ buildSync({
   outfile: './dist/index.js',
   format: 'esm',
   target: 'node16',
-  platform: 'node',
   bundle: true,
   external: dependencies,
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
-  },
-  banner: {
-    js: '#!/usr/bin/env node',
   },
 });
