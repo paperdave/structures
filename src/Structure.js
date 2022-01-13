@@ -1,4 +1,4 @@
-import { DataType } from './builtin-validators/types';
+import { DataType } from './DataType';
 
 const StructureData = Symbol.for('RealStructureData');
 
