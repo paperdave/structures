@@ -1,0 +1,9 @@
+{
+  "name": "@davecode/structures",
+  "version": "1.0.0",
+  "description": "easily building data structures that are serializable, validatable, and fully typed",
+  "type": "module",
+  "repository": "https://github.com/davecaruso/structures",
+  "author": "Dave Caruso",
+  "license": "MIT"
+}
