@@ -14,3 +14,7 @@ export type ObjectWithMethod<
 export type Identity<T> = T extends Record<string, unknown>
   ? { [P in keyof T]: Identity<T[P]> }
   : T;
+
+export type KeyNamesOf<Object, Match> = {
+  [K in keyof Object]: Object[K] extends Match ? K : never;
+}[keyof Object];

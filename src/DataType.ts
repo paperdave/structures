@@ -42,7 +42,7 @@ export abstract class DataType<T = any> implements Serializer<T> {
     return cloned;
   }
 
-  nullable(): DataType<T | null> {
+  get nullable(): DataType<T | null> {
     return new NullableDataType(this);
   }
 

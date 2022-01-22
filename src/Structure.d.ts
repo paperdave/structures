@@ -1,61 +1,201 @@
-// this was taken from an earlier version of the codebase where i wrote Structure as a single ts file
-// now, to make it simpler, the implementation and the definitions are split into separate files
-// however, the these defs can certainly be simplified. until then, i REFUSE to publicly export anything besides `Structure`
+/**
+ * Due to the absurd complexity of this class, the implmentation and the typings are separate. It
+ * may not look simpler than having one ts file, but I promise you, it is.
+ *
+ * To reduce issues:
+ *
+ * - There is an extensive test suite covering every line of code in this class, ensuring bug-free code.
+ * - There is a stupid amount of comments, increasing understanding and maintainability.
+ *
+ * Have fun reading,
+ *
+ * - Dave Caruso
+ */
+import { DataType, Serializer } from './DataType';
+import { AnyFunction, Identity, KeyNamesOf, ObjectWithMethod } from './helper-types';
 
-import { DataType, Serializer } from "./DataType";
-import { Dict } from "./helper-types";
+/**
+ * @internal Box type for the definition of a property on a structure. Do not pass a DataType,
+ * but rather the underlying type.
+ */
+interface Prop<Type, HasDefault extends boolean = false> {
+  Type: Type;
+  HasDefault: HasDefault;
+}
 
-interface PropertyOptions<T = any> {
-    default?: T | (() => T);
+/** @internal Unwraps the type T out of Prop<T> */
+type UnwrapProp<T> = T extends Prop<infer Type, infer HasDefault> ? Type : never;
+
+/** @internal Box type for the definition of a method on a structure. */
+interface Method<M extends AnyFunction> {
+  Function: M;
 }
-export interface StructureProperty<Type = any, Required extends boolean = false> {
-    type: DataType<Type>;
-    default?: Type | (() => Type);
+
+/** @internal Unwraps the type M out of Method<M> */
+type UnwrapMethod<T> = T extends Method<infer M> ? M : never;
+
+/** Options passed as an optional third argument to Structure.prop */
+export interface StructurePropOptions<T> {
+  /**
+   * Provide a default value or function to return the default value.Properties with default values
+   * or nullable data types do not have to be passed during the constructor.
+   */
+  default?: T | (() => T);
 }
-declare type ObjWithMethod<Key extends PropertyKey, Value extends (args: any[]) => any, Obj = {
-    method(...args: Parameters<Value>): ReturnType<Value>;
-}> = {
-    [K in keyof Obj as Key]: Obj[K];
-};
-export declare type Identity<T> = T extends Record<string, unknown> ? {
-    [P in keyof T]: Identity<T[P]>;
-} : T;
-export interface CreateOptions<T extends Dict<StructureProperty>, M> {
-    customSerializer?: Serializer<StructureInstance<T, M>>;
-    abstract?: boolean;
+
+/** Options passed as an optional argument to Structure.create */
+export interface StructureCreateOptions<I> {
+  customSerializer?: Serializer<StructureInstance<I>>;
+  abstract?: boolean;
 }
-export declare class Structure<Props extends Dict<StructureProperty> = {}, Methods = {}> {
-    readonly name: string;
-    private properties;
-    private methods;
-    constructor(name?: string);
-    prop<Key extends string, Type>(key: Key, type: DataType<Type>): Structure<Props & {
-        [key in Key]: StructureProperty<Type, Extract<Type, null | undefined> extends never ? true : false>;
-    }, Methods>;
-    prop<Key extends string, Type, Options extends PropertyOptions<Type>>(key: Key, type: DataType<Type>, options: Options): Structure<Props & {
-        [key in Key]: StructureProperty<Type, Options['default'] extends undefined ? Type extends null | undefined ? false : true : false>;
-    }, Methods>;
-    method<Key extends string, Func extends (this: StructureInstance<Props, Methods>, ...args: any[]) => any>(key: Key, func: Func): Structure<Props, Methods & ObjWithMethod<Key, Func>>;
-    mixin<T2 extends Dict<StructureProperty>, M2>(mixin: Structure<T2, M2> | StructureType<T2, M2>): Structure<Props & T2, Methods & M2>;
-    create(opts?: CreateOptions<Props, Methods>): StructureType<Props, Methods>;
+
+/**
+ * Builder-style class for custom object structures. Chain properties with `.prop`, then convert it
+ * to a DataType class with `.create`. The resulting class can be used to create instances of the
+ * structure using the `new` keyword, or via serialization methods `fromJSON` and `toJSON`.
+ */
+// The type argument `Properties` is an object of either Prop or Method objects, which determine the
+// signature of the created object. Calling `prop` or `method` will add a property or method to the
+// type parameter. When calling `create`, the properties and methods will passed onto
+// `StructureType` and `StructureInstance` so they show the built types.
+export declare class Structure<Properties = {}> {
+  constructor(name?: string);
+
+  /** The name of this structure */
+  readonly name: string;
+
+  /** Add a property to this structure, then return itself. */
+  prop<
+    // We need to grab everything as a type paramteter, so we can use it for the return value.
+    Key extends string,
+    Type, // (Type refers to the underlying type of the property)
+    Opts extends StructurePropOptions<T>
+  >(
+    key: Key,
+    type: DataType<Type>,
+    options: Opts
+  ): Structure<
+    // Identity is used to clean up the type that is shown in the hover-ui.
+    // instead of { x: Prop<...> } & { y: Prop<...> }, we want { x: Prop<...>, y: Prop<...> }
+    Identity<
+      // The main logic of this return type is combining the existing properties
+      // with one new property. We do that with a simple "mapped" type.
+      Properties & {
+        [K in Key]: Prop<
+          Type,
+          // Check for default in the options, which is used to alter the types slightly.
+          Opts['default'] extends Type | (() => Type)
+            ? true
+            : // If the type includes null or undefined, default is set to true
+            Extract<Type, null | undefined> extends never
+            ? false
+            : true
+        >;
+      }
+    >
+  >;
+
+  /** Add a property to this structure, then return itself. */
+  // This is a simplified version of the above prop method, which is used for the case where there
+  // is no options object. It's impossible to pass a default value this way, so it is a LOT simpler.
+  prop<Key extends string, Type>(
+    key: Key,
+    type: DataType<Type>
+  ): Structure<
+    // See above for how this works
+    Identity<
+      Properties & {
+        [K in Key]: Prop<Type, Extract<Type, null | undefined> extends never ? false : true>;
+      }
+    >
+  >;
+
+  /** Add a method to this structure, then return itself. */
+  // Implementation for this type is extremely simple, especially after seeing the above ones.
+  method<
+    Key extends string,
+    Func extends (this: StructureInstance<Properties>, ...args: any[]) => any
+  >(key: Key, func: Func): Structure<Identity<Properties & { [K in Key]: Method<Func> }>>;
+
+  /** Applies a mixin to this structure, copying every property and method from the mixin to this structure. */
+  mixin<M>(mixin: Structure<M> | StructureClass<M>): Structure<T & M>;
+
+  /** Finalize building and return the structure class */
+  create(opts?: StructureCreateOptions): StructureClass<Properties>;
 }
-declare type StructureType<T extends Dict<StructureProperty>, M> = DataType<StructureInstance<T, M>> & {
-    new (data: StructureOptions<T>): StructureInstance<T, M>;
-    extend(name: string): Structure<T, M>;
-    types: {
-        [key in keyof T]: T[key]['type'];
+
+/** @internal with structure properties object, returns union of key names for all property names */
+type PropKeyNames<I> = KeyNamesOf<I, Prop<any, boolean>>;
+/** @internal with structure properties object, returns union of key names for all required property names */
+type RequiredPropKeyNames<I> = KeyNamesOf<I, Prop<any, false>>;
+/** @internal with structure properties object, returns union of key names for all optional property names */
+type OptionalPropKeyNames<I> = KeyNamesOf<I, Prop<any, true>>;
+/** @internal with structure properties object, returns union of key names for all method names */
+type MethodKeyNames<I> = KeyNamesOf<I, Method<any>>;
+
+/**
+ * The class type of a custom-built structure. See `Structure` for more information on how to create
+ * and use these.
+ */
+export type StructureClass<I> =
+  // This extends DataType, so it is intersected with the other properties in this types.
+  DataType<StructureInstance<I>> &
+    // This is a constructor itself, but passing an argument depends on if there are any required
+    // properties (something which has no null and no default function)
+    (RequiredPropKeyNames<I> extends never
+      ? {
+          new (data?: StructureOptions<I>): StructureInstance<I>;
+        }
+      : {
+          new (data: StructureOptions<I>): StructureInstance<I>;
+        }) & {
+      // The other two properties are really simple, so i wont explain them.
+
+      /**
+       * Extend this structure, essentially creating a new `Structure` builder out of the
+       * configuration this structure has.
+       */
+      extend(name?: string): Structure<I>;
+
+      /** Reference property types that this structure uses. An object of `DataType`s */
+      types: {
+        [K in PropKeyNames<I>]: DataType<UnwrapProp<I[K]>>;
+      };
     };
-    properties: T;
-    methods: M;
-};
-declare type StructureInstance<T extends Dict<StructureProperty>, M> = Identity<{
-    [K in keyof T]: T[K] extends StructureProperty<infer Type> ? Type : never;
-} & M>;
-export declare type RequiredKeyNames<T, A> = {
-    [K in keyof T]: T[K] extends StructureProperty<infer T, infer R> ? R extends A ? K : never : never;
-}[keyof T];
-export declare type StructureOptions<T extends Dict<StructureProperty>> = Identity<{
-    [K in RequiredKeyNames<T, true>]: T[K] extends StructureProperty<infer Type> ? Type : never;
-} & {
-    [K in RequiredKeyNames<T, false>]?: T[K] extends StructureProperty<infer Type> ? Type : never;
-}>;
+
+/**
+ * An instance of a `StructureClass`, which contains all validated properties methods. See
+ * `Structure` for more information on how to create and use these.
+ */
+// The implementation on this is quite simple, just copy over the properties and methods.
+export type StructureInstance<I> = Identity<
+  {
+    toJSON(): unknown;
+  } & {
+    [K in PropKeyNames<I>]: UnwrapProp<I[K]>;
+  } & {
+    // Methods are very funky (so is prettier formatting this comment block)
+    //
+    // If you do not declare a method using { method(): void } notation, it will show the property
+    // icon in VSCode, so instead i get around this using a helper type `ObjectWithMethod` which gets
+    // around this.
+    //
+    // This causes another issue where if there are no methods, then the `{ ... }[never]` turns
+    // into `never`, turning the ENTIRE type into `never`. The solution is that extra check seeing
+    // if methods exist; and if none are found, a `{}` is intersected instead of a `never`
+  } & (MethodKeyNames<I> extends never
+      ? {}
+      : {
+          [K in MethodKeyNames<I>]: ObjectWithMethod<K, UnwrapMethod<I[K]>>;
+        }[MethodKeyNames<I>])
+>;
+
+/** Options to pass to the constructor for a `StructureClass` */
+// This is a simple type. Just make the required properties required, and the optional optional.
+export type StructureOptions<I> = Identity<
+  {
+    [K in RequiredPropKeyNames<I>]: UnwrapProp<I[K]>;
+  } & {
+    [K in OptionalPropKeyNames<I>]?: UnwrapProp<I[K]>;
+  }
+>;
