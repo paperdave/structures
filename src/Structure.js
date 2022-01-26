@@ -1,3 +1,22 @@
+/**
+ * Due to the absurd complexity of this class, the implmentation and the typings are separate. It
+ * may not look simpler than having one ts file, but I promise you, it is.
+ *
+ * To reduce issues:
+ *
+ * - There is an extensive test suite covering every line of code in this class, ensuring bug-free code.
+ * - There is a stupid amount of comments, increasing understanding and maintainability.
+ *
+ * Have fun reading,
+ *
+ * - Dave Caruso
+ */
+
+// THIS VERSION OF THE CODE IS NOT AT ALL UP TO DATE. THERES A COMMIT ON
+// ANOTHER MACHINE WITH UP TO DATE CODE.
+
+// in fact, i dont think the below stuff even works, but its *close*
+
 import { DataType } from './DataType';
 
 const StructureData = Symbol.for('RealStructureData');
