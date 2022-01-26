@@ -25,7 +25,10 @@ export abstract class DataType<T = any> implements Serializer<T> {
   }
 
   clone() {
-    const cloned = { ...this };
+    const cloned = {
+      validators: [...this.validators],
+      interceptors: [...this.interceptors],
+    };
     (cloned as any).__proto__ = (this as any).__proto__;
     return cloned as unknown as this;
   }

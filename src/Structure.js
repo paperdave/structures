@@ -5,25 +5,6 @@ const StructureData = Symbol.for('RealStructureData');
 const DataTypePrototype = Object.getOwnPropertyNames(DataType.prototype) //
   .reduce((acc, key) => ({ ...acc, [key]: DataType.prototype[key] }), {});
 
-function getDefaultSerializer(structure) {
-  return {
-    toJSON(instance) {
-      const data = {};
-      for (const key in structure.properties) {
-        data[key] = structure.properties[key].type.toJSON(instance[key]);
-      }
-      return data;
-    },
-    fromJSON(json) {
-      const data = {};
-      for (const key in structure.properties) {
-        data[key] = structure.properties[key].type.fromJSON(json[key]);
-      }
-      return new Proxied(data);
-    },
-  };
-}
-
 export class Structure {
   constructor(name = 'Structure') {
     this.name = name;
@@ -42,27 +23,47 @@ export class Structure {
   }
 
   mixin(mixin) {
+    mixin = mixin.__structure ?? mixin;
     this.properties = { ...this.properties, ...mixin.properties };
     this.methods = { ...this.methods, ...mixin.methods };
     return this;
   }
 
   create(options = {}) {
+    const structure = this;
+
+    let Proxied;
+
+    const defaultSerializer = {
+      toJSON(instance) {
+        const data = {};
+        for (const key in structure.properties) {
+          data[key] = structure.properties[key].type.toJSON(instance[key]);
+        }
+        return data;
+      },
+      fromJSON(json) {
+        const data = {};
+        for (const key in structure.properties) {
+          data[key] = structure.properties[key].type.fromJSON(json[key]);
+        }
+        return new Proxied(data);
+      },
+    };
+
     // Create the basic object
     const Type = Object.assign(
       class {},
       DataTypePrototype,
-      options.customSerializer ?? getDefaultSerializer(this)
+      options.customSerializer ?? defaultSerializer
     );
-
-    Type.validators = [];
-    Type.interceptors = [];
-    Type.types = {};
-    Object.defineProperty(Type, 'name', { value: this.name });
 
     // Create the prototype assigned to instances
     const prototype = {
       ...structure.methods,
+      toJSON() {
+        return Type.toJSON(this);
+      },
       [Symbol.for('nodejs.util.inspect.custom')]() {
         return {
           ...this[StructureData],
@@ -71,40 +72,60 @@ export class Structure {
       },
     };
 
+    Type[Symbol.hasInstance] = function (instance) {
+      return instance instanceof Type;
+    };
+
+    Type.validators = [];
+    Type.interceptors = [(x) => (x.__proto__ === prototype ? x : new Type(x))];
+    Type.types = {};
+    Type.extend = (name) => {
+      return new Structure(name).mixin(structure);
+    };
+    Type.__structure = structure;
+    Object.defineProperty(Type, 'name', { value: structure.name });
+
     // Loop over properties and add them to `prototype` and `Type`
     for (const [key, prop] of Object.entries(structure.properties)) {
-      Object.defineProperty(prototype, key, {
-        get() {
-          return this[StructureData][key];
-        },
-        set(value) {
-          value = prop.type.intercept(value);
-          if (prop.type.validate(value)) {
-            this[StructureData][key] = value;
-          } else {
-            throw new Error(`Data validation failed for ${structure.name}.${key}: ${value}`);
-          }
-        },
-      });
-
       Type.types[key] = prop.type;
       Type.validators.push((x) => prop.type.validate(x[key]));
     }
 
+    // Loop over methods and add to validators
+    for (const [key, prop] of Object.entries(structure.methods)) {
+      // very loose validation is done here
+      Type.validators.push((x) => typeof x[key] === typeof prop);
+    }
+
+    const instanceProxyHandlers = {
+      get(target, key) {
+        return target[key];
+      },
+      set(target, key, value) {
+        value = Type.types[key].intercept(value);
+        if (Type.types[key].validate(value)) {
+          target[key] = value;
+        } else {
+          throw new Error(`Data validation failed for ${structure.name}.${key}: ${value}`);
+        }
+        return true;
+      },
+    };
+
     // Use a proxy to overwrite the constructor
-    const Proxied = new Proxy(Type, {
+    Proxied = new Proxy(Type, {
       construct(_, [data]) {
-        const target = {};
+        const target = { __proto__: prototype };
 
         for (const key in structure.properties) {
-          const { type, ...prop } = structure.properties[key];
+          const prop = structure.properties[key];
 
           target[key] = prop.type.intercept(
-            data[key] ?? typeof prop.default === 'function' ? prop.default() : prop.default
+            data[key] ?? (typeof prop.default === 'function' ? prop.default() : prop.default)
           );
         }
 
-        const constructed = { __proto__: prototype, [StructureData]: target };
+        const constructed = new Proxy(target, instanceProxyHandlers);
 
         if (!Type.validate(constructed)) {
           throw new Error(`Data validation failed for new ${structure.name}`);
