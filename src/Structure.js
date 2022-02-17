@@ -11,15 +11,7 @@
  *
  * - Dave Caruso
  */
-
-// THIS VERSION OF THE CODE IS NOT AT ALL UP TO DATE. THERES A COMMIT ON
-// ANOTHER MACHINE WITH UP TO DATE CODE.
-
-// in fact, i dont think the below stuff even works, but its *close*
-
 import { DataType } from './DataType';
-
-const StructureData = Symbol.for('RealStructureData');
 
 const DataTypePrototype = Object.getOwnPropertyNames(DataType.prototype) //
   .reduce((acc, key) => ({ ...acc, [key]: DataType.prototype[key] }), {});
@@ -72,7 +64,11 @@ export class Structure {
 
     // Create the basic object
     const Type = Object.assign(
-      class {},
+      class {
+        static [Symbol.hasInstance](instance) {
+          return Type.validate(instance);
+        }
+      },
       DataTypePrototype,
       options.customSerializer ?? defaultSerializer
     );
@@ -83,19 +79,9 @@ export class Structure {
       toJSON() {
         return Type.toJSON(this);
       },
-      [Symbol.for('nodejs.util.inspect.custom')]() {
-        return {
-          ...this[StructureData],
-          __proto__: Type.prototype,
-        };
-      },
     };
 
-    Type[Symbol.hasInstance] = function (instance) {
-      return instance instanceof Type;
-    };
-
-    Type.validators = [];
+    Type.validators = [(x) => typeof x.toJSON === 'function'];
     Type.interceptors = [(x) => (x.__proto__ === prototype ? x : new Type(x))];
     Type.types = {};
     Type.extend = (name) => {

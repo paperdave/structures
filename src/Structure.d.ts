@@ -121,7 +121,7 @@ export declare class Structure<Properties = {}> {
   mixin<M>(mixin: Structure<M> | StructureClass<M>): Structure<T & M>;
 
   /** Finalize building and return the structure class */
-  create(opts?: StructureCreateOptions): StructureClass<Properties>;
+  create(opts?: StructureCreateOptions<Properties>): StructureClass<Properties>;
 }
 
 /** @internal with structure properties object, returns union of key names for all property names */

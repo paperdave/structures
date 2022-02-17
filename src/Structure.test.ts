@@ -1,4 +1,5 @@
-import { Structure, DataType, types } from './index';
+import util from 'util';
+import { DataType, Structure, types } from './index';
 
 describe('Structure', () => {
   function getTest() {
@@ -68,14 +69,7 @@ describe('Structure', () => {
     expect(test2.hello).toBe('WORLD');
   });
 
-  test('raw objects can validate so long as no methods exist', () => {
-    const Test = getTest();
-    expect(Test.validate({ hello: 'hello', world: 4 })).toBe(true);
-    expect(Test.validate(new Test({ hello: 'hello', world: 4 }))).toBe(true);
-    expect(Test.validate(Test.fromJSON({ hello: 'hello', world: 4 }))).toBe(true);
-  });
-
-  test('raw objects can not validate if methods exist', () => {
+  test('raw objects can not validate due to prototype', () => {
     const Test = getMethodStruct();
     expect(Test.validate({ hello: 'hello' } as any)).toBe(false);
     expect(Test.validate(new Test({ hello: 'hello' }))).toBe(true);
@@ -161,5 +155,56 @@ describe('Structure', () => {
     const Test = getTest();
     const test = new Test({ hello: 'hello', world: 4 });
     expect(test instanceof Test).toBe(true);
+  });
+
+  test('should throw if invalid data in constructor', () => {
+    const Test = getTest();
+    expect(() => new Test({ hello: 'hello', world: null } as any)).toThrow();
+  });
+
+  test('custom util.inspect functionality', () => {
+    const Test = getTest();
+    const test = new Test({ hello: 'hello', world: 4 });
+
+    console.log(util.inspect(test));
+
+    expect(util.inspect(test)).toMatchInlineSnapshot(`"Structure { hello: 'hello', world: 4 }"`);
+  });
+
+  test('default properties literal', () => {
+    const Test = new Structure('Test').prop('hello', types.String, { default: 'hello' }).create();
+
+    const x = new Test({});
+    expect(x.hello).toBe('hello');
+  });
+
+  test('default properties function', () => {
+    const Test = new Structure('Test')
+      .prop('hello', types.String, { default: () => 'hello' })
+      .create();
+
+    const x = new Test({});
+    expect(x.hello).toBe('hello');
+  });
+
+  test('custom serializer', () => {
+    const Test = new Structure('Test').prop('hello', types.String).create({
+      customSerializer: {
+        fromJSON(value: string) {
+          return new Test({ hello: value });
+        },
+        toJSON(value) {
+          return value.hello;
+        },
+      },
+    });
+
+    const x = new Test({ hello: 'hello' });
+    expect(x.hello).toBe('hello');
+    expect(new Test(x).hello).toBe('hello');
+    expect(x.toJSON()).toBe('hello');
+    expect(Test.toJSON(x)).toBe('hello');
+    expect(Test.fromJSON('hello')).toBeInstanceOf(Test);
+    expect(Test.fromJSON('hello').hello).toBe('hello');
   });
 });
