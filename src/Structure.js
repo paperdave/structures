@@ -11,7 +11,7 @@
  *
  * - Dave Caruso
  */
-import { DataType } from './DataType';
+import { DataType, NullableDataType } from './DataType';
 
 const DataTypePrototype = Object.getOwnPropertyNames(DataType.prototype) //
   .reduce((acc, key) => ({ ...acc, [key]: DataType.prototype[key] }), {});
@@ -42,6 +42,7 @@ export class Structure {
 
   create(options = {}) {
     const structure = this;
+    const abstractExtensions = [];
 
     let Proxied;
 
@@ -54,6 +55,23 @@ export class Structure {
         return data;
       },
       fromJSON(json) {
+        if (options.abstract) {
+          // abstract mode searches for an extension
+          let constructed = null;
+
+          abstractExtensions.find((x) => {
+            try {
+              constructed = x.fromJSON(json);
+            } catch (error) {
+              return false;
+            }
+          });
+
+          if (constructed) {
+            return constructed;
+          }
+        }
+
         const data = {};
         for (const key in structure.properties) {
           data[key] = structure.properties[key].type.fromJSON(json[key]);
@@ -85,7 +103,11 @@ export class Structure {
     Type.interceptors = [(x) => (x.__proto__ === prototype ? x : new Type(x))];
     Type.types = {};
     Type.extend = (name) => {
-      return new Structure(name).mixin(structure);
+      const extension = new Structure(name).mixin(structure);
+      if (options.abstract) {
+        extension.oncreate = (x) => abstractExtensions.push(x);
+      }
+      return extension;
     };
     Type.__structure = structure;
     Object.defineProperty(Type, 'name', { value: structure.name });
@@ -102,10 +124,11 @@ export class Structure {
       Type.validators.push((x) => typeof x[key] === typeof prop);
     }
 
+    Object.defineProperty(Type, 'nullable', {
+      get: () => new NullableDataType(Type),
+    });
+
     const instanceProxyHandlers = {
-      get(target, key) {
-        return target[key];
-      },
       set(target, key, value) {
         value = Type.types[key].intercept(value);
         if (Type.types[key].validate(value)) {
@@ -141,6 +164,10 @@ export class Structure {
     });
 
     prototype.constructor = Proxied;
+
+    if (this.oncreate) {
+      this.oncreate(Proxied);
+    }
 
     return Proxied;
   }

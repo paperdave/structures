@@ -69,7 +69,7 @@ export class NullableDataType<T> extends DataType<T | null> {
   }
 
   toJSON(instance: T | null): unknown {
-    if (instance === null) {
+    if (instance === null || instance === undefined) {
       return null;
     } else {
       return this.type.toJSON(instance);

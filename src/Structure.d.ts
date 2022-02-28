@@ -12,7 +12,13 @@
  * - Dave Caruso
  */
 import { DataType, Serializer } from './DataType';
-import { AnyFunction, Identity, KeyNamesOf, ObjectWithMethod } from './helper-types';
+import {
+  AnyFunction,
+  Identity,
+  KeyNamesOf,
+  ObjectWithMethod,
+  UnionToIntersection,
+} from './helper-types';
 
 /**
  * @internal Box type for the definition of a property on a structure. Do not pass a DataType,
@@ -69,7 +75,7 @@ export declare class Structure<Properties = {}> {
     // We need to grab everything as a type paramteter, so we can use it for the return value.
     Key extends string,
     Type, // (Type refers to the underlying type of the property)
-    Opts extends StructurePropOptions<T>
+    Opts extends StructurePropOptions<any>
   >(
     key: Key,
     type: DataType<Type>,
@@ -118,7 +124,7 @@ export declare class Structure<Properties = {}> {
   >(key: Key, func: Func): Structure<Identity<Properties & { [K in Key]: Method<Func> }>>;
 
   /** Applies a mixin to this structure, copying every property and method from the mixin to this structure. */
-  mixin<M>(mixin: Structure<M> | StructureClass<M>): Structure<T & M>;
+  mixin<M>(mixin: Structure<M> | StructureClass<M>): Structure<Properties & M>;
 
   /** Finalize building and return the structure class */
   create(opts?: StructureCreateOptions<Properties>): StructureClass<Properties>;
@@ -179,15 +185,11 @@ export type StructureInstance<I> = Identity<
     // If you do not declare a method using { method(): void } notation, it will show the property
     // icon in VSCode, so instead i get around this using a helper type `ObjectWithMethod` which gets
     // around this.
-    //
-    // This causes another issue where if there are no methods, then the `{ ... }[never]` turns
-    // into `never`, turning the ENTIRE type into `never`. The solution is that extra check seeing
-    // if methods exist; and if none are found, a `{}` is intersected instead of a `never`
-  } & (MethodKeyNames<I> extends never
-      ? {}
-      : {
-          [K in MethodKeyNames<I>]: ObjectWithMethod<K, UnwrapMethod<I[K]>>;
-        }[MethodKeyNames<I>])
+  } & UnionToIntersection<
+      {
+        [K in MethodKeyNames<I>]: ObjectWithMethod<K, UnwrapMethod<I[K]>>;
+      }[MethodKeyNames<I>]
+    >
 >;
 
 /** Options to pass to the constructor for a `StructureClass` */

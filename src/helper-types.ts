@@ -18,3 +18,10 @@ export type Identity<T> = T extends Record<string, unknown>
 export type KeyNamesOf<Object, Match> = {
   [K in keyof Object]: Object[K] extends Match ? K : never;
 }[keyof Object];
+
+// From: https://fettblog.eu/typescript-union-to-intersection/
+export type UnionToIntersection<T> = (T extends any ? (x: T) => any : never) extends (
+  x: infer R
+) => any
+  ? R
+  : never;
