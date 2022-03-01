@@ -24,13 +24,26 @@ import {
  * @internal Box type for the definition of a property on a structure. Do not pass a DataType,
  * but rather the underlying type.
  */
-interface Prop<Type, HasDefault extends boolean = false> {
+interface Prop<Type, Serialized, HasDefault extends boolean = false> {
   Type: Type;
+  Serialized: Serialized;
   HasDefault: HasDefault;
 }
 
 /** @internal Unwraps the type T out of Prop<T> */
-type UnwrapProp<T> = T extends Prop<infer Type, infer HasDefault> ? Type : never;
+type UnwrapPropType<T> = T extends Prop<infer Type, infer Serialized, infer HasDefault>
+  ? Type
+  : never;
+
+/** @internal Unwraps the serialized T out of Prop<T> */
+type UnwrapPropSerialized<T> = T extends Prop<infer Type, infer Serialized, infer HasDefault>
+  ? Type
+  : never;
+
+/** @internal Converts a Prop to a DataType */
+type GetPropDataType<T> = T extends Prop<infer Type, infer Serialized, infer HasDefault>
+  ? DataType<Type, Serialized>
+  : never;
 
 /** @internal Box type for the definition of a method on a structure. */
 interface Method<M extends AnyFunction> {
@@ -78,7 +91,7 @@ export declare class Structure<Properties = {}> {
     Opts extends StructurePropOptions<any>
   >(
     key: Key,
-    type: DataType<Type>,
+    type: DataType<Type, Serialized>,
     options: Opts
   ): Structure<
     // Identity is used to clean up the type that is shown in the hover-ui.
@@ -89,6 +102,7 @@ export declare class Structure<Properties = {}> {
       Properties & {
         [K in Key]: Prop<
           Type,
+          Serialized,
           // Check for default in the options, which is used to alter the types slightly.
           Opts['default'] extends Type | (() => Type)
             ? true
@@ -104,14 +118,18 @@ export declare class Structure<Properties = {}> {
   /** Add a property to this structure, then return itself. */
   // This is a simplified version of the above prop method, which is used for the case where there
   // is no options object. It's impossible to pass a default value this way, so it is a LOT simpler.
-  prop<Key extends string, Type>(
+  prop<Key extends string, Type, Serialized>(
     key: Key,
-    type: DataType<Type>
+    type: DataType<Type, Serialized>
   ): Structure<
     // See above for how this works
     Identity<
       Properties & {
-        [K in Key]: Prop<Type, Extract<Type, null | undefined> extends never ? false : true>;
+        [K in Key]: Prop<
+          Type,
+          Serialized,
+          Extract<Type, null | undefined> extends never ? false : true
+        >;
       }
     >
   >;
@@ -131,11 +149,11 @@ export declare class Structure<Properties = {}> {
 }
 
 /** @internal with structure properties object, returns union of key names for all property names */
-type PropKeyNames<I> = KeyNamesOf<I, Prop<any, boolean>>;
+type PropKeyNames<I> = KeyNamesOf<I, Prop<any, any, boolean>>;
 /** @internal with structure properties object, returns union of key names for all required property names */
-type RequiredPropKeyNames<I> = KeyNamesOf<I, Prop<any, false>>;
+type RequiredPropKeyNames<I> = KeyNamesOf<I, Prop<any, any, false>>;
 /** @internal with structure properties object, returns union of key names for all optional property names */
-type OptionalPropKeyNames<I> = KeyNamesOf<I, Prop<any, true>>;
+type OptionalPropKeyNames<I> = KeyNamesOf<I, Prop<any, any, true>>;
 /** @internal with structure properties object, returns union of key names for all method names */
 type MethodKeyNames<I> = KeyNamesOf<I, Method<any>>;
 
@@ -145,7 +163,7 @@ type MethodKeyNames<I> = KeyNamesOf<I, Method<any>>;
  */
 export type StructureClass<I> =
   // This extends DataType, so it is intersected with the other properties in this types.
-  DataType<StructureInstance<I>> &
+  DataType<StructureInstance<I>, SerializedStructure<I>> &
     // This is a constructor itself, but passing an argument depends on if there are any required
     // properties (something which has no null and no default function)
     (RequiredPropKeyNames<I> extends never
@@ -165,7 +183,7 @@ export type StructureClass<I> =
 
       /** Reference property types that this structure uses. An object of `DataType`s */
       types: {
-        [K in PropKeyNames<I>]: DataType<UnwrapProp<I[K]>>;
+        [K in PropKeyNames<I>]: GetPropDataType<I[K]>;
       };
     };
 
@@ -178,7 +196,7 @@ export type StructureInstance<I> = Identity<
   {
     toJSON(): unknown;
   } & {
-    [K in PropKeyNames<I>]: UnwrapProp<I[K]>;
+    [K in PropKeyNames<I>]: UnwrapPropType<I[K]>;
   } & {
     // Methods are very funky (so is prettier formatting this comment block)
     //
@@ -192,12 +210,17 @@ export type StructureInstance<I> = Identity<
     >
 >;
 
+/** An serialized instance of a `StructureClass` */
+export type SerializedStructure<I> = Identity<{
+  [K in PropKeyNames<I>]: UnwrapPropSerialized<I[K]>;
+}>;
+
 /** Options to pass to the constructor for a `StructureClass` */
 // This is a simple type. Just make the required properties required, and the optional optional.
 export type StructureOptions<I> = Identity<
   {
-    [K in RequiredPropKeyNames<I>]: UnwrapProp<I[K]>;
+    [K in RequiredPropKeyNames<I>]: UnwrapPropType<I[K]>;
   } & {
-    [K in OptionalPropKeyNames<I>]?: UnwrapProp<I[K]>;
+    [K in OptionalPropKeyNames<I>]?: UnwrapPropType<I[K]>;
   }
 >;

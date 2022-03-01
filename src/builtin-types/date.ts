@@ -1,6 +1,6 @@
 import { DataType } from '../DataType';
 
-export class DateDataType extends DataType<Date> {
+export class DateDataType extends DataType<Date, number> {
   constructor() {
     super([(value) => value instanceof Date]);
   }

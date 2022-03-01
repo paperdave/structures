@@ -1,20 +1,20 @@
-export interface Serializer<T> {
-  toJSON(instance: T): unknown;
-  fromJSON(json: unknown): T;
+export interface Serializer<T, S = unknown> {
+  toJSON(instance: T): S;
+  fromJSON(json: S): T;
 }
 
 export type Validator<T> = (instance: T) => boolean;
 export type Interceptor<T> = (instance: T) => T;
 export type Instance<T extends DataType<any>> = T extends DataType<infer U> ? U : never;
 
-export abstract class DataType<T = any> implements Serializer<T> {
+export abstract class DataType<T = any, S = unknown> implements Serializer<T, S> {
   constructor(
     private validators: Validator<T>[] = [],
     private interceptors: Interceptor<T>[] = []
   ) {}
 
-  abstract toJSON(instance: T): unknown;
-  abstract fromJSON(json: unknown): T;
+  abstract toJSON(instance: T): S;
+  abstract fromJSON(json: S): T;
 
   validate(value: T) {
     return this.validators.every((validator) => validator(value));
@@ -45,7 +45,7 @@ export abstract class DataType<T = any> implements Serializer<T> {
     return cloned;
   }
 
-  get nullable(): DataType<T | null> {
+  get nullable(): NullableDataType<T, S> {
     return new NullableDataType(this);
   }
 
@@ -54,8 +54,8 @@ export abstract class DataType<T = any> implements Serializer<T> {
   }
 }
 
-export class NullableDataType<T> extends DataType<T | null> {
-  constructor(private type: DataType<T>) {
+export class NullableDataType<T, S = unknown> extends DataType<T | null, S | null> {
+  constructor(private type: DataType<T, S>) {
     super(
       [
         (instance: T | null) =>
@@ -68,7 +68,7 @@ export class NullableDataType<T> extends DataType<T | null> {
     );
   }
 
-  toJSON(instance: T | null): unknown {
+  toJSON(instance: T | null): S | null {
     if (instance === null || instance === undefined) {
       return null;
     } else {
@@ -76,8 +76,8 @@ export class NullableDataType<T> extends DataType<T | null> {
     }
   }
 
-  fromJSON(json: unknown): T | null {
-    if (json === undefined || json === null) {
+  fromJSON(json: S | null): T | null {
+    if (json === null || json === undefined) {
       return null;
     } else {
       return this.type.fromJSON(json);

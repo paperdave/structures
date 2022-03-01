@@ -2,7 +2,7 @@ import { DataType } from '../DataType';
 
 type EnumDataType<T extends string> = EnumDataTypeClass<T> & Record<T, T>;
 
-class EnumDataTypeClass<T extends string> extends DataType<T> {
+class EnumDataTypeClass<T extends string> extends DataType<T, T> {
   constructor(public values: T[]) {
     super([(value) => values.includes(value)]);
 

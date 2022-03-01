@@ -7,10 +7,10 @@ Structures is a TypeScript library for easily building data structure classes th
 - **Fully Typed**: Custom structures' properties are fully typed, and even nullable ones are maked
   optional.
 
-This library is custom-built for [davecode.net](https://github.com/davecaruso/davecode.net) for all
-of the types in our database and on the API layer.
-
-My usage of the library in my site is public and you can view them
+This library is custom-built for my website,
+[davecode.net](https://github.com/davecaruso/davecode.net), where it is used to define all of the
+data structures in my database, validate API request bodies, and easily share logic across the stack
+using it's easy serialization system. You can view these structures as examples
 [here](https://github.com/davecaruso/davecode.net/tree/main/src/lib/structures)
 
 ```
@@ -27,7 +27,7 @@ import { Structure, types } from '@davecode/structures';
 const Person = new Structure('Person')
   .prop('name', types.String)
   .prop('age', types.Number)
-  .prop('occupation', types.String.nullable())
+  .prop('occupation', types.String.nullable)
   .method('sayHello', function () {
     console.log(`${this.name} says Hello.`);
   })

@@ -1,17 +1,17 @@
 import { DataType } from '../DataType';
 
-export class PrimativeDataType<T> extends DataType<T> {
+export class PrimativeDataType<T> extends DataType<T, T> {
   constructor(type: string) {
     super([(value) => typeof value === type]);
   }
 
   // serialization
-  toJSON(value: T): unknown {
+  toJSON(value: T): T {
     return value;
   }
 
-  fromJSON(value: unknown): T {
-    return value as T;
+  fromJSON(value: T): T {
+    return value;
   }
 }
 
