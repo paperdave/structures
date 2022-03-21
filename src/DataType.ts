@@ -3,9 +3,24 @@ export interface Serializer<T, S = unknown> {
   fromJSON(json: S): T;
 }
 
-export type Validator<T> = (instance: T) => boolean;
+export interface ValidationResult {
+  valid: boolean;
+  errors?: string[];
+}
+
+export type Validator<T> = (instance: T) => boolean | string | ValidationResult;
 export type Interceptor<T> = (instance: T) => T;
 export type Instance<T extends DataType<any>> = T extends DataType<infer U> ? U : never;
+
+export function toValidationResult(item: boolean | string | ValidationResult) {
+  if (typeof item === 'string') {
+    return { valid: false, errors: [item] };
+  } else if (typeof item === 'boolean') {
+    return item ? { valid: true } : { valid: false, errors: ['Unknown Error'] };
+  } else {
+    return item;
+  }
+}
 
 export abstract class DataType<T = any, S = unknown> implements Serializer<T, S> {
   constructor(
@@ -17,7 +32,22 @@ export abstract class DataType<T = any, S = unknown> implements Serializer<T, S>
   abstract fromJSON(json: S): T;
 
   validate(value: T) {
-    return this.validators.every((validator) => validator(value));
+    const results = this.validators.map((validator) => {
+      try {
+        return toValidationResult(validator(value));
+      } catch (error) {
+        return { valid: false, errors: ['Thrown: ' + String(error)] };
+      }
+    });
+    const hasError = results.some((result) => !result.valid);
+    return {
+      valid: !hasError,
+      errors: results.map((x) => x.errors ?? []).flat(),
+    };
+  }
+
+  isValid(value: T) {
+    return this.validate(value).valid;
   }
 
   intercept(value: T) {

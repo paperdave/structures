@@ -2,7 +2,21 @@ import { DataType } from '../DataType';
 
 class SetDataType<T, S = unknown> extends DataType<Set<T>, S[]> {
   constructor(private type: DataType<T, S>) {
-    super([(value) => value instanceof Set && [...value].every((x) => type.validate(x))]);
+    super([
+      (value) => {
+        if (!(value instanceof Set)) {
+          return 'must be a set';
+        }
+        const validations = [...value].map((x) => this.type.validate(x));
+        const isValid = validations.every((x) => x.valid);
+        return isValid
+          ? true
+          : {
+              valid: false,
+              errors: validations.map((x) => x.errors ?? []).flat(),
+            };
+      },
+    ]);
   }
 
   toJSON(instance: Set<T>): S[] {

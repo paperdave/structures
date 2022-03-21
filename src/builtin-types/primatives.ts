@@ -2,7 +2,7 @@ import { DataType } from '../DataType';
 
 export class PrimativeDataType<T> extends DataType<T, T> {
   constructor(type: string) {
-    super([(value) => typeof value === type]);
+    super([(value) => (typeof value === type ? true : `must be a ${type}`)]);
   }
 
   // serialization
@@ -29,27 +29,33 @@ export class StringDataType extends PrimativeDataType<string> {
 
   // validators
   minLength(minLength: number) {
-    return this.withValidator((value) => value.length >= minLength);
+    return this.withValidator((value) =>
+      value.length >= minLength ? true : `must be at least ${minLength} characters`
+    );
   }
 
   maxLength(maxLength: number) {
-    return this.withValidator((value) => value.length <= maxLength);
+    return this.withValidator((value) =>
+      value.length <= maxLength ? true : `must be at most ${maxLength} characters`
+    );
   }
 
   length(length: number) {
-    return this.withValidator((value) => value.length === length);
+    return this.withValidator((value) =>
+      value.length === length ? true : `must be exactly ${length} characters`
+    );
   }
 
   mustMatch(regex: RegExp) {
-    return this.withValidator((value) => regex.test(value));
+    return this.withValidator((value) =>
+      regex.test(value) ? true : `must match expression: "${regex}"`
+    );
   }
 
   mustNotMatch(regex: RegExp) {
-    return this.withValidator((value) => !regex.test(value));
-  }
-
-  mustInclude(...values: string[]) {
-    return this.withValidator((value) => values.includes(value));
+    return this.withValidator((value) =>
+      !regex.test(value) ? true : `must not match expression: "${regex}"`
+    );
   }
 }
 
@@ -60,31 +66,27 @@ export class NumberDataType extends PrimativeDataType<number> {
 
   // validators
   min(min: number) {
-    return this.withValidator((value) => value >= min);
+    return this.withValidator((value) => (value >= min ? true : `must be at least ${min}`));
   }
 
   max(max: number) {
-    return this.withValidator((value) => value <= max);
+    return this.withValidator((value) => (value <= max ? true : `must be at most ${max}`));
   }
 
   mustBeInteger() {
-    return this.withValidator((value) => Number.isInteger(value));
-  }
-
-  mustBeFinite() {
-    return this.withValidator((value) => Number.isFinite(value));
+    return this.withValidator((value) => (Number.isInteger(value) ? true : `must be an integer`));
   }
 
   mustBePositive() {
-    return this.withValidator((value) => value >= 0);
+    return this.withValidator((value) => (value >= 0 ? true : `must be a positive number`));
   }
 
   mustBeNegative() {
-    return this.withValidator((value) => value < 0);
+    return this.withValidator((value) => (value < 0 ? true : `must be a negative number`));
   }
 
   cannotBeZero() {
-    return this.withValidator((value) => value !== 0);
+    return this.withValidator((value) => (value !== 0 ? true : `cannot be zero`));
   }
 
   // interceptors

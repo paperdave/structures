@@ -12,7 +12,7 @@ describe('Structure', () => {
   function getMethodStruct() {
     return new Structure() //
       .prop('hello', types.String)
-      .method('method', function (arg1: number) {
+      .method('method', function (arg1) {
         return `${this.hello.toUpperCase()} ${arg1}`;
       })
       .create();
@@ -23,18 +23,18 @@ describe('Structure', () => {
     const test1 = new Test({ hello: 'hello', world: 4 });
     expect(test1.hello).toBe('hello');
     expect(test1.world).toBe(4);
-    expect(Test.validate(test1)).toBe(true);
+    expect(Test.isValid(test1)).toBe(true);
     expect(Test.toJSON(test1)).toEqual({ hello: 'hello', world: 4 });
 
     const test2 = Test.fromJSON({ hello: 'hello', world: 4 });
     expect(test2.hello).toBe('hello');
     expect(test2.world).toBe(4);
-    expect(Test.validate(test2)).toBe(true);
+    expect(Test.isValid(test2)).toBe(true);
 
     test2.hello = 'world2';
     expect(test2.hello).toBe('world2');
 
-    expect(Test.validate(test2)).toBe(true);
+    expect(Test.isValid(test2)).toBe(true);
 
     expect(Test.toJSON(test2)).toEqual({ hello: 'world2', world: 4 });
     expect(test2.toJSON()).toEqual({ hello: 'world2', world: 4 });
@@ -48,7 +48,7 @@ describe('Structure', () => {
     expect(test2.hello).toBe('world2');
 
     expect(() => {
-      (test2 as any).world = '5';
+      test2.world = '5';
     }).toThrow();
 
     expect(test2.world).toBe(4);
@@ -71,9 +71,9 @@ describe('Structure', () => {
 
   test('raw objects can not validate due to prototype', () => {
     const Test = getMethodStruct();
-    expect(Test.validate({ hello: 'hello' } as any)).toBe(false);
-    expect(Test.validate(new Test({ hello: 'hello' }))).toBe(true);
-    expect(Test.validate(Test.fromJSON({ hello: 'hello' }))).toBe(true);
+    expect(Test.isValid({ hello: 'hello' })).toBe(false);
+    expect(Test.isValid(new Test({ hello: 'hello' }))).toBe(true);
+    expect(Test.isValid(Test.fromJSON({ hello: 'hello' }))).toBe(true);
   });
 
   test('methods must function', () => {
@@ -95,8 +95,8 @@ describe('Structure', () => {
     const Test = getTest();
     expect(Test.types.hello).toBeInstanceOf(DataType);
     expect(Test.types.world).toBeInstanceOf(DataType);
-    expect(Test.types.hello.validate('hello')).toBe(true);
-    expect(Test.types.world.validate('world' as any)).toBe(false);
+    expect(Test.types.hello.isValid('hello')).toBe(true);
+    expect(Test.types.world.isValid('world')).toBe(false);
   });
 
   test('mixins', () => {
@@ -142,13 +142,13 @@ describe('Structure', () => {
     expect(extended2.hello2).toBe('hello3');
     expect(extended2.world).toBe(4);
 
-    expect(Base.validate(base1)).toBe(true);
-    expect(Base.validate(extended1)).toBe(true);
-    expect(Base.validate(extended2)).toBe(true);
+    expect(Base.isValid(base1)).toBe(true);
+    expect(Base.isValid(extended1)).toBe(true);
+    expect(Base.isValid(extended2)).toBe(true);
 
-    expect(Extended.validate(base1 as any)).toBe(false);
-    expect(Extended.validate(extended1)).toBe(true);
-    expect(Extended.validate(extended2)).toBe(true);
+    expect(Extended.isValid(base1)).toBe(false);
+    expect(Extended.isValid(extended1)).toBe(true);
+    expect(Extended.isValid(extended2)).toBe(true);
   });
 
   test('instanceof should work', () => {
@@ -159,7 +159,7 @@ describe('Structure', () => {
 
   test('should throw if invalid data in constructor', () => {
     const Test = getTest();
-    expect(() => new Test({ hello: 'hello', world: null } as any)).toThrow();
+    expect(() => new Test({ hello: 'hello', world: null })).toThrow();
   });
 
   test('custom util.inspect functionality', () => {
@@ -188,7 +188,7 @@ describe('Structure', () => {
   test('custom serializer', () => {
     const Test = new Structure('Test').prop('hello', types.String).create({
       customSerializer: {
-        fromJSON(value: string) {
+        fromJSON(value) {
           return new Test({ hello: value });
         },
         toJSON(value) {

@@ -84,7 +84,7 @@ export class Structure {
     const Type = Object.assign(
       class {
         static [Symbol.hasInstance](instance) {
-          return Type.validate(instance);
+          return Type.validate(instance).valid;
         }
       },
       DataTypePrototype,
@@ -99,7 +99,7 @@ export class Structure {
       },
     };
 
-    Type.validators = [(x) => typeof x.toJSON === 'function'];
+    Type.validators = [];
     Type.interceptors = [(x) => (x.__proto__ === prototype ? x : new Type(x))];
     Type.types = {};
     Type.extend = (name) => {
@@ -115,7 +115,11 @@ export class Structure {
     // Loop over properties and add them to `prototype` and `Type`
     for (const [key, prop] of Object.entries(structure.properties)) {
       Type.types[key] = prop.type;
-      Type.validators.push((x) => prop.type.validate(x[key]));
+      Type.validators.push((x) => {
+        const validation = prop.type.validate(x[key]);
+        validation.errors = validation.errors.map((message) => `.${key} ${message}`);
+        return validation;
+      });
     }
 
     // Loop over methods and add to validators
@@ -131,10 +135,15 @@ export class Structure {
     const instanceProxyHandlers = {
       set(target, key, value) {
         value = Type.types[key].intercept(value);
-        if (Type.types[key].validate(value)) {
+        const validation = Type.types[key].validate(value);
+        if (validation.valid) {
           target[key] = value;
         } else {
-          throw new Error(`Data validation failed for ${structure.name}.${key}: ${value}`);
+          throw new Error(
+            `Data validation failed when modifying ${
+              structure.name
+            }.${key}: ${value}\n${validation.errors.map((x) => ` - ${x}`).join('\n')}`
+          );
         }
         return true;
       },
@@ -155,8 +164,13 @@ export class Structure {
 
         const constructed = new Proxy(target, instanceProxyHandlers);
 
-        if (!Type.validate(constructed)) {
-          throw new Error(`Data validation failed for new ${structure.name}`);
+        const { valid, errors } = Type.validate(constructed);
+        if (!valid) {
+          throw new Error(
+            `Data validation failed for new ${structure.name}\n${errors
+              .map((x) => ` - ${x}`)
+              .join('\n')}`
+          );
         }
 
         return constructed;

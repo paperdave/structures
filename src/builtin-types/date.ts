@@ -2,7 +2,7 @@ import { DataType } from '../DataType';
 
 export class DateDataType extends DataType<Date, number> {
   constructor() {
-    super([(value) => value instanceof Date]);
+    super([(value) => (value instanceof Date ? true : 'must be a Date')]);
   }
 
   // serialization
@@ -16,11 +16,15 @@ export class DateDataType extends DataType<Date, number> {
 
   // validators
   mustBeAfter(date: Date) {
-    return this.withValidator((value) => value.getTime() > date.getTime());
+    return this.withValidator((value) =>
+      value.getTime() > date.getTime() ? true : `must be after ${date}`
+    );
   }
 
   mustBeBefore(date: Date) {
-    return this.withValidator((value) => value.getTime() < date.getTime());
+    return this.withValidator((value) =>
+      value.getTime() < date.getTime() ? true : `must be before ${date}`
+    );
   }
 
   // interceptors

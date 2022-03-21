@@ -4,7 +4,7 @@ type EnumDataType<T extends string> = EnumDataTypeClass<T> & Record<T, T>;
 
 class EnumDataTypeClass<T extends string> extends DataType<T, T> {
   constructor(public values: T[]) {
-    super([(value) => values.includes(value)]);
+    super([(value) => (values.includes(value) ? true : `must be one of: ${values.join(', ')}`)]);
 
     for (const value of values) {
       (this as any)[value] = value;

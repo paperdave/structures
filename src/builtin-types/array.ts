@@ -2,7 +2,21 @@ import { DataType } from '../DataType';
 
 class ArrayDataType<T, S> extends DataType<T[], S[]> {
   constructor(private type: DataType<T, S>) {
-    super([(value) => Array.isArray(value) && value.every((x) => type.validate(x))]);
+    super([
+      (value) => {
+        if (!Array.isArray(value)) {
+          return 'must be an array';
+        }
+        const validations = value.map((x) => this.type.validate(x));
+        const isValid = validations.every((x) => x.valid);
+        return isValid
+          ? true
+          : {
+              valid: false,
+              errors: validations.map((x) => x.errors ?? []).flat(),
+            };
+      },
+    ]);
   }
 
   toJSON(instance: T[]): S[] {
