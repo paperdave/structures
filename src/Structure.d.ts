@@ -65,7 +65,6 @@ export interface StructurePropOptions<T> {
 /** Options passed as an optional argument to Structure.create */
 export interface StructureCreateOptions<I> {
   customSerializer?: Serializer<StructureInstance<I>>;
-  abstract?: boolean;
 }
 
 /**

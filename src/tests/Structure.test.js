@@ -205,35 +205,4 @@ describe('Structure', () => {
     expect(Test.fromJSON('hello')).toBeInstanceOf(Test);
     expect(Test.fromJSON('hello').hello).toBe('hello');
   });
-
-  test('abstract', () => {
-    const Base = new Structure('Base') //
-      .prop('type', types.String)
-      .create({ abstract: true });
-    const Type1 = Base.extend('Type1') //
-      .prop('type', types.String.mustEqual('one'))
-      .create();
-    const Type2 = Base.extend('Type2')
-      .prop('type', types.String.mustEqual('two'))
-      .prop('num', types.Number)
-      .create();
-
-    new Base({ type: 'unknown' });
-    new Type1({ type: 'one' });
-    new Type2({ type: 'two', num: 2 });
-
-    // casting to sub-type
-    new Type1(new Base({ type: 'one' }));
-
-    new Type2({
-      ...new Base({ type: 'two' }),
-      num: 2,
-    });
-
-    const type1fromJson = Base.fromJSON({ type: 'one' });
-    expect(type1fromJson instanceof Type1).toBe(true);
-
-    const type2fromJson = Base.fromJSON({ type: 'two', num: 5 });
-    expect(type2fromJson instanceof Type2).toBe(true);
-  });
 });
