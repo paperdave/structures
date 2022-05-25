@@ -7,7 +7,7 @@ Structures is a TypeScript library for easily building data structure classes th
 - **Fully Typed**: Custom structures' properties are fully typed, and even nullable ones are maked
   optional.
 
-This library is custom-built for my website, [davecode.net](https://github.com/davecaruso/davecode.net), ~~where it is used to define all of the data structures in my database~~ _(not used for this anymore as there are no "partial" structures)_, validate API request bodies, and easily share logic across the stack using it's easy serialization system.
+i'm still exploring applications of this library. it was originally intended to structure my database tables, but i stopped that after implementing "partial" structures and the fact it performs a validation every time a property is changed. i use prisma's generated types for my database structures, though the idea of having a defined class you can add arbitrary methods on such as `.toURL()` is still extremely interesting to me, and i'll figure something out eventually.
 
 ```
 yarn add @davecode/structures
