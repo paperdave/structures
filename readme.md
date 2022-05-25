@@ -7,11 +7,7 @@ Structures is a TypeScript library for easily building data structure classes th
 - **Fully Typed**: Custom structures' properties are fully typed, and even nullable ones are maked
   optional.
 
-This library is custom-built for my website,
-[davecode.net](https://github.com/davecaruso/davecode.net), where it is used to define all of the
-data structures in my database, validate API request bodies, and easily share logic across the stack
-using it's easy serialization system. You can view these structures as examples
-[here](https://github.com/davecaruso/davecode.net/tree/main/src/lib/structures)
+This library is custom-built for my website, [davecode.net](https://github.com/davecaruso/davecode.net), ~~where it is used to define all of the data structures in my database~~ _(not used for this anymore as there are no "partial" structures)_, validate API request bodies, and easily share logic across the stack using it's easy serialization system.
 
 ```
 yarn add @davecode/structures
